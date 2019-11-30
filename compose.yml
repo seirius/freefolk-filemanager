@@ -5,3 +5,12 @@ services:
     image: redis:5.0.7-alpine
     ports:
       - '6379:6379'
+
+  filemanager:
+    image: freefolk-filemanager
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_FILE_DB: 0
+    ports:
+      - 3000:3000
