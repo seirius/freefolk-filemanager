@@ -4,6 +4,9 @@ WORKDIR /usr/src/app
 
 COPY ./ ./
 
+RUN mkdir files
+RUN mkdir files/tmp
+
 RUN npm install && npm install -g typescript && tsc
 
 EXPOSE 3000/tcp
