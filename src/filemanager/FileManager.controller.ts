@@ -7,6 +7,23 @@ import { FileManager } from "./FileManager";
 import { UploadedFile } from "express-fileupload";
 import { lookup } from "mime-types";
 
+/**
+ * @swagger
+ * definitions:
+ *  Metadata:
+ *      type: object
+ *      properties:
+ *          id:
+ *              type: string
+ *          path:
+ *              type: string
+ *          filename:
+ *              type: string
+ *          tags:
+ *              type: array
+ *              items:
+ *                  type: string
+ */
 @Controller('')
 export class FileManagerController {
 
@@ -91,7 +108,6 @@ export class FileManagerController {
     @Catch
     public async download(req: Request, res: Response): Promise<void> {
         const {id} = req.params;
-
         const {readStream, metadata: {filename}} = await FileManager.read({id});
         res.setHeader('Content-disposition', 'attachment; filename=' + filename);
         res.setHeader("x-suggested-filename", filename);
@@ -101,6 +117,32 @@ export class FileManagerController {
             res.status(INTERNAL_SERVER_ERROR).json({ok: false});
         });
         readStream.on("close", () => res.end());
+    }
+
+    /**
+     * @swagger
+     * /metadata/{id}:
+     *  get:
+     *      tags:
+     *          - metadata
+     *      parameters:
+     *          - in: path
+     *            name: id
+     *            type: string
+     *            required: true
+     *      responses:
+     *          200:
+     *              description: ok
+     *              schema:
+     *                  $ref: '#/definitions/Metadata'
+     *                      
+     */
+    @Get("metadata/:id")
+    @Catch
+    public async metadata(req: Request, res: Response): Promise<void> {
+        const {id} = req.params;
+        const metadata = await FileManager.getFileMetadata(id);
+        res.status(OK).json(metadata);
     }
 
 }
