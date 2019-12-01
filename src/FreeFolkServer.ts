@@ -8,7 +8,6 @@ import * as swaggerUi from 'swagger-ui-express';
 import fileUpload from 'express-fileupload';
 import { FileManagerConfig } from './config/FileManagerConfig';
 import { FileManagerController } from './filemanager/FileManager.controller';
-import express from "express";
 
 export class FreeFolkServer extends Server {
 
@@ -45,7 +44,7 @@ export class FreeFolkServer extends Server {
         this.app.listen(
             ServerConfig.PORT, 
             () => {
-                Logger.Info(`Server listenning at http://localhost:${ServerConfig.PORT}`, true);
+                Logger.Info(`FileManager listenning at http://localhost:${ServerConfig.PORT}`, true);
                 Logger.Info(`Swagger at http://localhost:${ServerConfig.PORT}/swagger`, true);
             }
         );

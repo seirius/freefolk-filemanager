@@ -5,6 +5,8 @@ import { promises, ReadStream, createReadStream } from "fs";
 import { createClient, RedisClient } from "redis";
 import { RedisConfig } from "../config/RedisConfig";
 import { Logger } from "@overnightjs/logger";
+import { HttpError } from '../error/HttpError';
+import { BAD_REQUEST } from 'http-status-codes';
 
 export class FileManager {
 
@@ -13,8 +15,9 @@ export class FileManager {
     public static async write({file, id, tags}: IWriteArgs): Promise<void> {
         const path = join(FileManagerConfig.FILE_DIRECTORY, file.name);
         try {
-            await FileManager.saveFileMetadata({id, path, tags, filename: file.name});
+            await FileManager.saveFileMetadata({id, path, tags, filename: file.name, stored: false});
             await file.mv(path);
+            await FileManager.updateMetadata(id, {stored: true});
         } catch (error) {
             await FileManager.deleteAll(id, path);
             throw error;
@@ -49,10 +52,10 @@ export class FileManager {
         await promises.unlink(path);
     }
 
-    public static saveFileMetadata({id, path, tags, filename}: IFileMetadata): Promise<void> {
+    public static saveFileMetadata({id, path, tags, filename, stored}: IFileMetadata): Promise<void> {
         return new Promise((resolve, reject) => {
             const { REDIS_CLIENT } = FileManager;
-            REDIS_CLIENT.set(id, JSON.stringify({id, path, tags, filename}), (error) => {
+            REDIS_CLIENT.set(id, JSON.stringify({id, path, tags, filename, stored}), (error) => {
                 if (error) {
                     reject(error);
                 } else {
@@ -80,6 +83,16 @@ export class FileManager {
                 }
             });
         });
+    }
+
+    public static async updateMetadata(id: string, args: Record<string, any>): Promise<void> {
+        let metadata = await FileManager.getFileMetadata(id);
+        if (!metadata) {
+            throw new HttpError("No metadata found", BAD_REQUEST);
+        }
+
+        metadata = {...metadata, ...args, ...{id}};
+        await FileManager.saveFileMetadata(metadata);
     }
 
     public static deleteFileMetadata(id: string): Promise<void> {
@@ -176,4 +189,5 @@ export interface IFileMetadata {
     path: string;
     filename: string;
     tags: string[];
+    stored: boolean;
 }
