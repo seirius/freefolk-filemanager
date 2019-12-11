@@ -39,7 +39,7 @@ export class FileManager {
         if (erase) {
             readStream.on("close", async () => {
                 try {
-                    await FileManager.deleteFileMetadata(id);
+                    await FileManager.expireFile(id);
                 } catch (deleteError) {
                     Logger.Err(deleteError, true);
                 }
@@ -97,7 +97,19 @@ export class FileManager {
 
     public static deleteFileMetadata(id: string): Promise<void> {
         return new Promise((resolve, reject) => {
-            FileManager.REDIS_CLIENT.del(`${id}:exp`, (error) => {
+            FileManager.REDIS_CLIENT.del(id, (error) => {
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve();
+                }
+            });
+        });
+    }
+
+    public static expireFile(id: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            FileManager.REDIS_CLIENT.expireat(`${id}:exp`, 1, (error) => {
                 if (error) {
                     reject(error);
                 } else {
