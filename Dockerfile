@@ -4,11 +4,8 @@ WORKDIR /usr/src/app
 
 COPY ./ ./
 
-RUN mkdir files
-RUN mkdir files/tmp
-
-RUN npm install && npm install -g typescript && tsc
+RUN npm install && npm install -g @nestjs/cli && nest build
 
 EXPOSE 3000/tcp
 
-ENTRYPOINT ["node", "lib/app.js"]
+ENTRYPOINT ["npm", "run", "start:prod"]
