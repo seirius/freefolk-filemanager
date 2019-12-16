@@ -1,55 +1,48 @@
-import { Injectable, LoggerService, HttpException, HttpStatus, Logger } from "@nestjs/common";
-import { RedisClient, createClient } from "redis";
-import { RedisConfig } from "./../config/RedisConfig";
+import { Injectable, HttpException, HttpStatus, Logger } from "@nestjs/common";
 import { join } from "path";
 import { FileManagerConfig } from "./../config/FileManagerConfig";
 import { ReadStream, createReadStream, promises } from "fs";
+import { RedisService, RedisEvent } from "./../redis/redis.service";
 
 @Injectable()
 export class FileManagerService {
 
     private readonly logger = new Logger(FileManagerService.name);
 
-    private redisClient: RedisClient;
-
-    constructor() {
-        this.redisClient = createClient({
-            host: RedisConfig.HOST,
-            port: RedisConfig.PORT,
-            db: RedisConfig.FILE_DB,
-        });
-        this.redisClient.sendCommand("config", ["set", "notify-keyspace-events", "KEA"], async () => {
-            const EXPIRE_EVENT = `__keyevent@${RedisConfig.FILE_DB}__:expired`;
-            const DELETE_EVENT = `__keyevent@${RedisConfig.FILE_DB}__:del`;
-            const subClient = createClient({
-                host: RedisConfig.HOST,
-                port: RedisConfig.PORT,
-                db: RedisConfig.FILE_DB,
-            });
-            subClient.subscribe([EXPIRE_EVENT, DELETE_EVENT]);
-            subClient.on("message", async (channel, key) => {
-                try {
+    constructor(
+        private readonly redisService: RedisService
+    ) {
+        this.redisService.subEvents([
+            {
+                event: RedisEvent.DELETE,
+                callback: async (channel: string, key: string) => {
                     if (key.includes(":exp")) {
                         const [id] = key.split(":");
                         const fileData = await this.getFileMetadata(id);
                         if (fileData) {
-                            if (channel === EXPIRE_EVENT) {
-                                await this.deleteAll(id, fileData.path);
-                            } else if (channel === DELETE_EVENT) {
-                                await this.deleteFile(fileData.path);
-                                this.redisClient.del(id, (error) => {
-                                    if (error) {
-                                        this.logger.error(error);
-                                    }
-                                });
-                            }
+                            await this.deleteAll(id, fileData.path);
                         }
                     }
-                } catch (error) {
-                    this.logger.error(error);
                 }
-            });
-        });
+            },
+            {
+                event: RedisEvent.EXPIRE,
+                callback: async (channel: string, key: string) => {
+                    if (key.includes(":exp")) {
+                        const [id] = key.split(":");
+                        const fileData = await this.getFileMetadata(id);
+                        if (fileData) {
+                            await this.deleteFile(fileData.path);
+                            this.redisService.redisClient.del(id, (error: Error) => {
+                                if (error) {
+                                    this.logger.error(error);
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+        ]);
     }
 
     public async write({file, id, tags}: IWriteArgs): Promise<void> {
@@ -92,11 +85,11 @@ export class FileManagerService {
 
     public saveFileMetadata({id, path, tags, filename, stored}: IFileMetadata): Promise<void> {
         return new Promise((resolve, reject) => {
-            this.redisClient.set(id, JSON.stringify({id, path, tags, filename, stored}), (error) => {
+            this.redisService.redisClient.set(id, JSON.stringify({id, path, tags, filename, stored}), (error) => {
                 if (error) {
                     reject(error);
                 } else {
-                    this.redisClient.set(`${id}:exp`, "1", "EX", FileManagerConfig.EXPIRATION_TIME, (err) => {
+                    this.redisService.redisClient.set(`${id}:exp`, "1", "EX", FileManagerConfig.EXPIRATION_TIME, (err) => {
                         if (err) {
                             reject(err);
                         } else {
@@ -110,7 +103,7 @@ export class FileManagerService {
 
     public getFileMetadata(id: string): Promise<IFileMetadata> {
         return new Promise((resolve, reject) => {
-            this.redisClient.get(id, (error, data) => {
+            this.redisService.redisClient.get(id, (error, data) => {
                 if (error) {
                     reject(error);
                 } else if (typeof data === "string") {
@@ -134,7 +127,7 @@ export class FileManagerService {
 
     public deleteFileMetadata(id: string): Promise<void> {
         return new Promise((resolve, reject) => {
-            this.redisClient.del(id, (error) => {
+            this.redisService.redisClient.del(id, (error) => {
                 if (error) {
                     reject(error);
                 } else {
@@ -146,7 +139,7 @@ export class FileManagerService {
 
     public expireFile(id: string): Promise<void> {
         return new Promise((resolve, reject) => {
-            this.redisClient.expireat(`${id}:exp`, 1, (error) => {
+            this.redisService.redisClient.expireat(`${id}:exp`, 1, (error) => {
                 if (error) {
                     reject(error);
                 } else {
