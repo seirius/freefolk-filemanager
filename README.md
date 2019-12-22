@@ -9,7 +9,7 @@
 |---|---|---|
 | FILE_DIRECTORY  | /usr/src/app/files | File path for storage  |
 | FILE_DIRECTORY_TMP  | /usr/src/app/files/tmp | tmp file path  |
-| EXPIRATION_TIME  | 360 | File expiration in seconds  |
+| FILE_EXPIRATION_TIME  | 360 | File expiration in seconds  |
 ---
 
 ## Redis config

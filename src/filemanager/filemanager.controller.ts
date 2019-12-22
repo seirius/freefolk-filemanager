@@ -1,10 +1,11 @@
-import { Controller, Post, HttpCode, HttpStatus, Body, UploadedFile, UseInterceptors, HttpException, Get, Param, Response as nResponse } from "@nestjs/common";
+import { Controller, Post, HttpCode, HttpStatus, Body, UploadedFile, UseInterceptors, HttpException, Get, Param, Response as nResponse, Query } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { UploadDto, UploadResponseDto, MetadataDto } from "./filemanager.dto";
 import { FileManagerService } from "./filemanager.service";
 import { ApiResponse, ApiConsumes, ApiOkResponse } from "@nestjs/swagger";
 import { lookup } from "mime-types";
 import { Response } from "express";
+import { ParseBooleanPipe } from "./../util/parse-boolean.boolean";
 
 @Controller()
 export class FileManagerController {
@@ -62,9 +63,10 @@ export class FileManagerController {
     })
     public async download(
         @Param("id") id: string,
+        @Query("erase", ParseBooleanPipe) erase: boolean,
         @nResponse() response: Response
     ): Promise<void> {
-        const {readStream, metadata: {filename}} = await this.filemanagerService.read({id});
+        const {readStream, metadata: {filename}} = await this.filemanagerService.read({id, erase});
         response.setHeader('Content-disposition', 'attachment; filename=' + filename);
         response.setHeader("x-suggested-filename", filename);
         response.setHeader("content-type", lookup(filename) || "application/octet-stream");
