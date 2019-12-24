@@ -3,6 +3,7 @@ import { join } from "path";
 import { FileManagerConfig } from "./../config/FileManagerConfig";
 import { ReadStream, createReadStream, promises } from "fs";
 import { RedisService, RedisEvent } from "./../redis/redis.service";
+import { MqttService } from "nest-mqtt-client";
 
 @Injectable()
 export class FileManagerService {
@@ -10,7 +11,8 @@ export class FileManagerService {
     private readonly logger = new Logger(FileManagerService.name);
 
     constructor(
-        private readonly redisService: RedisService
+        private readonly redisService: RedisService,
+        private readonly mqttService: MqttService,
     ) {
         this.redisService.subEvents([
             {
@@ -21,6 +23,14 @@ export class FileManagerService {
                         const fileData = await this.getFileMetadata(id);
                         if (fileData) {
                             await this.deleteAll(id, fileData.path);
+                            this.mqttService.push({
+                                channel: "file_state",
+                                payload: {
+                                    state: "delete",
+                                    id,
+                                    tags: fileData.tags,
+                                }
+                            });
                         }
                     }
                 }
@@ -33,6 +43,14 @@ export class FileManagerService {
                         const fileData = await this.getFileMetadata(id);
                         if (fileData) {
                             await this.deleteFile(fileData.path);
+                            this.mqttService.push({
+                                channel: "file_state",
+                                payload: {
+                                    state: "expired",
+                                    id,
+                                    tags: fileData.tags,
+                                }
+                            });
                             this.redisService.redisClient.del(id, (error: Error) => {
                                 if (error) {
                                     this.logger.error(error);
