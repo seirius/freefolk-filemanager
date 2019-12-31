@@ -6,7 +6,8 @@ import { ApiResponse, ApiConsumes, ApiOkResponse } from "@nestjs/swagger";
 import { lookup } from "mime-types";
 import { Response } from "express";
 import { ParseBooleanPipe } from "./../util/parse-boolean.boolean";
-import * as contentDisposition from "content-disposition";
+import contentDisposition from "content-disposition";
+import btoa from "btoa";
 
 @Controller()
 export class FileManagerController {
@@ -68,8 +69,8 @@ export class FileManagerController {
         @nResponse() response: Response
     ): Promise<void> {
         const {readStream, metadata: {filename}} = await this.filemanagerService.read({id, erase});
-        response.setHeader('Content-disposition', contentDisposition(filename));
-        response.setHeader("x-suggested-filename", filename);
+        response.setHeader("Content-Disposition", contentDisposition(filename));
+        response.setHeader("x-suggested-filename-b64", btoa(filename));
         response.setHeader("content-type", lookup(filename) || "application/octet-stream");
         readStream.pipe(response);
         readStream.on("error", (error) => {
