@@ -1,14 +1,17 @@
 FROM node:12.13.1-alpine AS build
 
 WORKDIR /usr/src/app
-
-RUN apk add git --no-cache
-
+RUN npm install -g @nestjs/cli
+COPY ./package.json ./package-lock.json ./
+RUN npm install 
+RUN apk add --no-cache git
+COPY ./nest-cli.json ./tsconfig.build.json ./tsconfig.json ./tslint.json ./
 COPY ./src ./src
-COPY ./nest-cli.json ./package.json ./package-lock.json ./tsconfig.build.json ./tsconfig.json ./tslint.json ./
+RUN nest build
 
-RUN npm install && npm install -g @nestjs/cli && nest build
-
+FROM node:12.13.1-alpine
+WORKDIR /usr/src/app
+COPY --from=build /usr/src/app/dist /usr/src/app/dist
+COPY --from=build /usr/src/app/node_modules /usr/src/app/node_modules
 EXPOSE 3000/tcp
-
 ENTRYPOINT ["node", "dist/main"]
