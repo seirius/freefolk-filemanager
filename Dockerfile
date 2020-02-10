@@ -3,8 +3,8 @@ FROM node:12.13.1-alpine AS build
 WORKDIR /usr/src/app
 RUN npm install -g @nestjs/cli
 COPY ./package.json ./package-lock.json ./
-RUN npm install 
 RUN apk add --no-cache git
+RUN npm install 
 COPY ./nest-cli.json ./tsconfig.build.json ./tsconfig.json ./tslint.json ./
 COPY ./src ./src
 RUN nest build
